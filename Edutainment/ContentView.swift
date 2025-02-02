@@ -12,6 +12,11 @@ struct GameView: View {
     @Binding var userAnswer: String
     @Binding var score: Int
     @Binding var scoreTitle: String
+    @Binding var showResults: Bool
+    var generateNextQuestion: () -> Void
+    @Binding var showingFinalScore: Bool
+    var resetGame: () -> Void
+    var submit: () -> Void
    
     
     //@State private var showSettings = false
@@ -20,22 +25,51 @@ struct GameView: View {
     
     var body: some View {
         VStack {
+            Spacer()
+            
             Text(question.text)
                 .font(.largeTitle)
                 .fontWeight(.bold)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.primary) //auto-adjustment for the system color mode
+                .padding()
+
             
             TextField("Enter answer", text: $userAnswer)
                 .keyboardType(.numberPad)
+                .textFieldStyle(.roundedBorder)
+                .foregroundColor(.primary)
                 .padding()
-        }
-        Button("Submit") {
             
+            Button("Submit") {
+                submit()
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.blue)
+            .foregroundStyle(Color.white)
+            .cornerRadius(8)
+            
+            Spacer()
+            
+            Text("Score: \(score)")
+                .font(.headline)
+                .padding(.bottom, 20)
         }
         
-        Spacer()
-        
-        Text("Score: \(score)")
-        
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))//auto-adjustment for the system color mode
+        .alert(scoreTitle, isPresented: $showResults) {
+            Button("Continue", action: generateNextQuestion)
+        } message: {
+            Text("Your score is \(score)")
+        }
+        .alert("Game over!", isPresented: $showingFinalScore) {
+            Button("Reset", action: resetGame)
+        } message: {
+            Text("Final score is \(score)")
+        }
     }
 }
 
@@ -56,7 +90,8 @@ struct ContentView: View {
     @State private var userAnswer = ""
     @State private var questions: [Question] = []
     @State private var scoreTitle = ""
-    
+    @State private var showingFinalScore = false
+    @State private var currentQuestionIndex = 0
     
     var body: some View {
         NavigationStack {
@@ -75,11 +110,24 @@ struct ContentView: View {
                 HStack {
                     Spacer()
                     Button("Start game") {
-                        generateQuestions()
-                        gameIsEnabled.toggle()
+                        startGame()
+                    
                     }
                     .sheet(isPresented: $gameIsEnabled) {
-                        GameView(userAnswer: $userAnswer, score: $score, scoreTitle: $scoreTitle, question: questions.first!)
+                        if currentQuestionIndex < questions.count {
+                            GameView(
+                                userAnswer: $userAnswer,
+                                score: $score,
+                                scoreTitle: $scoreTitle,
+                                showResults: $showResults,
+                                generateNextQuestion: generateNextQuestion,
+                                showingFinalScore:$showingFinalScore,
+                                resetGame: resetGame,
+                                submit: submit,
+                                question: questions[currentQuestionIndex])
+                        } else {
+                            Text("No questions available")
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
@@ -94,32 +142,59 @@ struct ContentView: View {
         
     }
     func startGame() {
-        gameIsEnabled = true
+        generateQuestions()
         showResults = false
         score = 0
-        generateQuestions()
+        if !questions.isEmpty {
+            currentQuestionIndex = 0
+            gameIsEnabled = true
+            
+        }
     }
     
     func generateQuestions() {
-        let firstMultiplier = Int.random(in: 1...12)
+        questions.removeAll()
+        for _ in 0..<totalQuestions {
+        let firstMultiplier = Int.random(in: 1...selectedTables)
         let secondMultiplier = Int.random(in: 1...12)
         let answer = "\(firstMultiplier * secondMultiplier)"
-        for _ in 0..<totalQuestions {
+        
             questions.append(Question(text: "What is \(firstMultiplier) x \(secondMultiplier)", answer: answer))
         }
         
     }
     
     func submit() {
-        for question in questions {
-            if question.answer == userAnswer {
+        guard currentQuestionIndex < questions.count else { return }
+        let correctAnswer = questions[currentQuestionIndex].answer
+        if userAnswer == correctAnswer {
+                scoreTitle = "Correct"
                 score += 1
+            } else {
+                scoreTitle = "Wrong! The correct answer is \(correctAnswer)"
             }
-        }
+            
+        userAnswer = ""
+            
+        if currentQuestionIndex == totalQuestions - 1 {
+                showingFinalScore = true
+            } else {
+                showResults = true
+                
+            }
         
     }
     
+    func generateNextQuestion() {
+        if currentQuestionIndex < totalQuestions - 1 {
+            currentQuestionIndex += 1
+        }
+    }
+    
     func resetGame() {
+        score = 0
+        currentQuestionIndex = 0
+        startGame()
         
     }
 }
