@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct GameView: View {
-    @Environment(\.dismiss) var dismiss
+    
     @Binding var userAnswer: String
     @Binding var score: Int
     @Binding var scoreTitle: String
@@ -19,7 +19,6 @@ struct GameView: View {
     var submit: () -> Void
    
     
-    //@State private var showSettings = false
     let question: Question
     
     
@@ -81,7 +80,7 @@ struct Question {
 
 
 struct ContentView: View {
-    //showingSettings
+    
     @State private var gameIsEnabled = false
     @State private var showResults = false
     @State private var selectedTables = 2
@@ -93,61 +92,84 @@ struct ContentView: View {
     @State private var showingFinalScore = false
     @State private var currentQuestionIndex = 0
     
+    @State private var currentView: ViewType = .settings
+    
+    enum ViewType {
+        case settings, game
+    }
+    
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Multiplication table range") {
-                    Stepper("Up to \(selectedTables)", value: $selectedTables, in: 2...12, step: 1)
-                }
-                Section("Questions count") {
-                    Picker("questions", selection: $totalQuestions) {
-                        Text("5").tag(5)
-                        Text("10").tag(10)
-                        Text("20").tag(20)
+            
+            VStack {
+                if currentView == .settings {
+                    settingsView
+                } else {
+                    if currentQuestionIndex < questions.count {
+                        GameView(
+                            userAnswer: $userAnswer,
+                            score: $score,
+                            scoreTitle: $scoreTitle,
+                            showResults: $showResults,
+                            generateNextQuestion: generateNextQuestion,
+                            showingFinalScore:$showingFinalScore,
+                            resetGame: resetGame,
+                            submit: submit,
+                            question: questions[currentQuestionIndex])
+                    } else {
+                        Text("No questions available")
                     }
-                    .pickerStyle(.segmented)
-                }
-                HStack {
-                    Spacer()
-                    Button("Start game") {
-                        startGame()
-                    
-                    }
-                    .sheet(isPresented: $gameIsEnabled) {
-                        if currentQuestionIndex < questions.count {
-                            GameView(
-                                userAnswer: $userAnswer,
-                                score: $score,
-                                scoreTitle: $scoreTitle,
-                                showResults: $showResults,
-                                generateNextQuestion: generateNextQuestion,
-                                showingFinalScore:$showingFinalScore,
-                                resetGame: resetGame,
-                                submit: submit,
-                                question: questions[currentQuestionIndex])
-                        } else {
-                            Text("No questions available")
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundStyle(Color.white)
-                    .cornerRadius(8)
-                    Spacer()
                 }
             }
+            
+ 
             .navigationTitle("Edutainment")
         }
         
     }
+    
+    private var settingsView: some View {
+        Form {
+            Section("Multiplication table range") {
+                Stepper("Up to \(selectedTables)", value: $selectedTables, in: 2...12, step: 1)
+            }
+            Section("Questions count") {
+                Picker("questions", selection: $totalQuestions) {
+                    Text("5").tag(5)
+                    Text("10").tag(10)
+                    Text("20").tag(20)
+                }
+                .pickerStyle(.segmented)
+            }
+            HStack {
+                Spacer()
+                Button("Start game") {
+                    startGame()
+                
+                }
+               
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundStyle(Color.white)
+                .cornerRadius(8)
+                
+                Spacer()
+            }
+        }
+    }
+    
     func startGame() {
         generateQuestions()
-        showResults = false
-        score = 0
+        
         if !questions.isEmpty {
+            
+            showResults = false
+            showingFinalScore = false
+            score = 0
             currentQuestionIndex = 0
-            gameIsEnabled = true
+            currentView = .game
+            
             
         }
     }
@@ -161,7 +183,8 @@ struct ContentView: View {
         
             questions.append(Question(text: "What is \(firstMultiplier) x \(secondMultiplier)", answer: answer))
         }
-        
+        print("Generated Questions: \(questions)")
+    
     }
     
     func submit() {
@@ -192,9 +215,11 @@ struct ContentView: View {
     }
     
     func resetGame() {
+        gameIsEnabled = false
         score = 0
         currentQuestionIndex = 0
-        startGame()
+        currentView = .settings
+        
         
     }
 }
